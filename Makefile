@@ -40,7 +40,7 @@ cover-html: cover-profile
 
 .PHONY: coveralls
 coveralls:
-	goveralls -repotoken 9EmpV6j34d3itxKKXJCjTYicQPZhgzwj3
+	goveralls -repotoken hgZrDNaXYkOjGk9tsVt74gryW2FVf51TH
 
 # Lint
 
