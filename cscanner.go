@@ -40,7 +40,7 @@ type ConcurrentScanner struct {
 func NewConcurrentScanner(readers []io.Reader) *ConcurrentScanner {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	s := &ConcurrentScanner{
+	cscanner := &ConcurrentScanner{
 		scans:  make(chan []byte),
 		errors: make(chan error),
 		done:   make(chan struct{}),
@@ -57,7 +57,7 @@ func NewConcurrentScanner(readers []io.Reader) *ConcurrentScanner {
 			scanner := bufio.NewScanner(reader)
 			for scanner.Scan() {
 				select {
-				case s.scans <- scanner.Bytes():
+				case cscanner.scans <- scanner.Bytes():
 					// While there is data, send it to s.scans,
 					// this will block until Scan() is called.
 				case <-ctx.Done():
@@ -68,7 +68,7 @@ func NewConcurrentScanner(readers []io.Reader) *ConcurrentScanner {
 			}
 			if err := scanner.Err(); err != nil {
 				select {
-				case s.errors <- err:
+				case cscanner.errors <- err:
 					// Reprort we got an error
 				case <-ctx.Done():
 					// Exit now if context was cancelled, otherwise sending
@@ -82,38 +82,38 @@ func NewConcurrentScanner(readers []io.Reader) *ConcurrentScanner {
 	go func() {
 		// Signal that all scanners have completed
 		wg.Wait()
-		close(s.done)
+		close(cscanner.done)
 	}()
 
-	return s
+	return cscanner
 }
 
 // Scan ...
-func (s *ConcurrentScanner) Scan() bool {
+func (cs *ConcurrentScanner) Scan() bool {
 	select {
-	case s.data = <-s.scans:
+	case cs.data = <-cs.scans:
 		// Got data from a scanner
 		return true
-	case <-s.done:
+	case <-cs.done:
 		// All scanners are done, nothing to do.
-	case s.err = <-s.errors:
+	case cs.err = <-cs.errors:
 		// One of the scanners error'd, were done.
 	}
-	s.cancel() // Cancel context regardless of how we exited.
+	cs.cancel() // Cancel context regardless of how we exited.
 	return false
 }
 
 // Bytes ...
-func (s *ConcurrentScanner) Bytes() []byte {
-	return s.data
+func (cs *ConcurrentScanner) Bytes() []byte {
+	return cs.data
 }
 
 // Text ...
-func (s *ConcurrentScanner) Text() string {
-	return string(s.data)
+func (cs *ConcurrentScanner) Text() string {
+	return string(cs.data)
 }
 
 // Err ...
-func (s *ConcurrentScanner) Err() error {
-	return s.err
+func (cs *ConcurrentScanner) Err() error {
+	return cs.err
 }
